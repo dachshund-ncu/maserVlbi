@@ -24,6 +24,7 @@ class maserVlbi:
         # -- optional: --
         self._getDate(self._fle)
         self._getBeam(self._fle)
+        self._getProjectCode(self._fle)
 
     def _getDate(self, fle):
         try:
@@ -46,6 +47,12 @@ class maserVlbi:
             self.beam_posang = bmarray[2]
         except:
             print(f"---> \"{self._filename}\": no beam data found!")
-        
+    
+    def _getProjectCode(self, fle):
+        try:
+            dset = fle['PROJECT_CODE']
+            self.project_code = dset[0].decode("ascii")
+        except:
+            print(f"---> \"{self._filename}\": no project code found!")
 
 

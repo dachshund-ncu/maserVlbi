@@ -7,9 +7,12 @@ import sys
 sys.path.append('data')
 from maserVlbi import maserVlbi
 import matplotlib.pyplot as plt
+import numpy as np
 
 if __name__ == '__main__':
     eee = maserVlbi(sys.argv[1])
     colors = eee.spots.getJetColors()
-    plt.scatter(eee.spots.dRA, eee.spots.dDEC, s=eee.spots.flux * 10, c = colors, marker='o')
+    print(f"Project code: {eee.project_code}")
+    plt.scatter(eee.spots.dRA, eee.spots.dDEC, s=np.log(eee.spots.flux * 1000)**2.0 * 2, c = colors, marker='o', edgecolor='black')
+    plt.gca().invert_xaxis()
     plt.show()

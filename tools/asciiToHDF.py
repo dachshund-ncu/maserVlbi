@@ -144,6 +144,10 @@ def makeHDF5File(filename, jmfit_file, ispec_file):
         isotBegin, isotEnd = getTimeInfo()
         addDateInfo(fle, isotBegin, isotEnd)
     
+    if askForPermission("Do you want to include project code? (y/*)"):
+        code = getProjCode()
+        addProjCodeInfo(fle, code)
+    
 
 def askForPermission(question):
     print(question)
@@ -201,6 +205,21 @@ def getBeamInfo():
     
     return beam_majaxis, beam_minaxis, posang
 
+def getProjCode():
+    flag = True
+    while flag:
+        print("Write project code: ")
+        try:
+            code = input('--> ')
+            flag = False
+        except:
+            print("Error! Try again")
+    return code
+
+def addProjCodeInfo(fle, code):
+    strList = [code.encode("ascii", "ignore")]
+    fle.create_dataset("PROJECT_CODE", data=strList)
+
 def addBeamInfo(fle, beam_majaxis, beam_minaxis, pos_ang):
     fle.create_dataset("BEAM", data = np.array([beam_majaxis, beam_minaxis, pos_ang]))
 
@@ -213,6 +232,7 @@ def addDateInfo(fle, dateIsotBegin, dateIsotEnd):
     fle.create_dataset("DATE", data = strList)
     #fle.attrs['DATE_BEGIN'] = dateIsotBegin
     #fle.attrs['DATE_END'] = dateIsotEnd
+
 
 if __name__ == '__main__':
     eee = jmfitFile(sys.argv[1])
