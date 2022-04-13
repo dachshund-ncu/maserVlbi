@@ -6,7 +6,9 @@ Set consists of:
 ### CLASSES ###
 
 - maserVlbi
+
     -- spotClass
+    
     -- spectrumClass
 
 
