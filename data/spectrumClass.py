@@ -12,3 +12,6 @@ class spectrumClass:
         self.channels = np.array(hdf5Group['CHANNELS'])
         self.velocity = np.array(hdf5Group['VELOCITY'])
         self.flux = np.array(hdf5Group['FLUX'])
+
+    def getJetColors():
+        pass

@@ -19,8 +19,12 @@ class spotsClass:
         self.channels = np.array(hdf5Group['CHANNELS'])
         self.velocity = np.array(hdf5Group['VELOCITY'])
     
-    def scaledVel(self):
-        return (self.velocity - self.velocity.min()) / self.velocity.ptp()
+    def __scaledVel(self, vmin, vrange):
+        return (self.velocity - vmin) / vrange
     
-    def getJetColors(self):
-        return plt.cm.jet(self.scaledVel())
+    def getJetColors(self, vmin = None, vmax = None):
+        if vmin == None and vmax == None:
+            vmin = self.velocity.min()
+            vmax = self.velocity.max()
+        vrange = abs(vmax - vmin)
+        return plt.cm.jet(self.__scaledVel(vmin, vrange))

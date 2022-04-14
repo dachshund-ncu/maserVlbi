@@ -14,8 +14,14 @@ import datetime
 
 class maserVlbi:
 
-    def __init__(self, filename):
+    def __init__(self, filename, verbose=False):
+        self.verbose = verbose
         self._filename = filename
+
+        if self.verbose:
+            print('-------------------------------')
+            print(f'---> Loading file \"{self._filename}\"...')
+
         self._fle = h5py.File(filename, 'r')
         # -- reading spots data --
         self.spots = spotsClass(self._fle['SPOTS'])
@@ -26,6 +32,9 @@ class maserVlbi:
         self._getBeam(self._fle)
         self._getProjectCode(self._fle)
 
+        if self.verbose:
+            print('-------------------------------')
+
     def _getDate(self, fle):
         try:
             dset = fle['DATE']
@@ -35,8 +44,11 @@ class maserVlbi:
             self.mjd_end = times[1].mjd
             self.isot_begin = times[0].isot
             self.isot_end = times[1].isot
+            if self.verbose:
+                print(f'---> begin: {self.isot_begin}, end: {self.isot_end}')
         except:
-            print(f"---> \"{self._filename}\": no time data found!")
+            if self.verbose:
+                print(f"---> no time data found!")
     
     def _getBeam(self, fle):
         try:
@@ -45,14 +57,33 @@ class maserVlbi:
             self.beam_majaxis = bmarray[0]
             self.beam_minaxis = bmarray[1]
             self.beam_posang = bmarray[2]
+            if self.verbose:
+                print(f'---> beam: {self.beam_majaxis} x {self.beam_minaxis}, {self.beam_posang}')
         except:
-            print(f"---> \"{self._filename}\": no beam data found!")
+            if self.verbose:
+                print(f"---> no beam data found!")
     
     def _getProjectCode(self, fle):
         try:
-            dset = fle['PROJECT_CODE']
-            self.project_code = dset[0].decode("ascii")
+            dset = fle['TELESCOPE']
+            self.array = dset[0].decode("ascii")
+            self.project_code = dset[1].decode("ascii")
+            self.pi = dset[2].decode("ascii")
+            if self.verbose:
+                print(f'---> array: {self.array}')
+                print(f'---> project coode: {self.project_code}')
+                print(f'---> PI: {self.pi}')
         except:
-            print(f"---> \"{self._filename}\": no project code found!")
+            if self.verbose:
+                print(f"---> no telescope data found!")
 
+    def _getBandData(self, fle):
+        try:
+            dset = fle['BAND']
+            self.band_letter = dset[0].decode("ascii")
+            self.rest_freq = float(dset[1].decode("ascii"))
+            self.molecule = dset[2].decode("ascii")
+        except:
+            if self.verbose:
+                print(f"---> no project code found!")
 
