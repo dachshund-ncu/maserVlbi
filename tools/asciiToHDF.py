@@ -10,6 +10,7 @@ We need two files:
 import numpy as np
 import sys
 import h5py
+import configparser
 
 class jmfitFile:
     def __init__(self, filename):
@@ -114,7 +115,7 @@ class ispecFile():
         self.channels, self.vlsr, self.fluxDensity = np.loadtxt(filename, unpack=True, usecols=(0,1,2))
         self.vlsr = self.vlsr / 1000.0 # calibrating into km/s
 
-def makeHDF5File(filename, jmfit_file, ispec_file):
+def makeHDF5File(filename, jmfit_file, ispec_file, configFile = None):
     fle = h5py.File(filename, 'w')
     # -- adding SPOTS info --
     # - group
@@ -136,17 +137,24 @@ def makeHDF5File(filename, jmfit_file, ispec_file):
     # - other datasets
     origin = fle.create_dataset("ORIGIN", data = np.array([jmfit_file.originRA, jmfit_file.originDEC]))
 
-    if askForPermission("Do you want to include beam info? (y/*)"):
-        beam_majaxis, beam_minaxis, pos_ang = getBeamInfo()
-        addBeamInfo(fle, beam_majaxis, beam_minaxis, pos_ang)
-    
-    if askForPermission("Do you want to include time info? (y/*)"):
-        isotBegin, isotEnd = getTimeInfo()
-        addDateInfo(fle, isotBegin, isotEnd)
-    
-    if askForPermission("Do you want to include project code? (y/*)"):
-        code = getProjCode()
-        addProjCodeInfo(fle, code)
+    if configFile == None:
+        if askForPermission("Do you want to include beam info? (y/*)"):
+            beam_majaxis, beam_minaxis, pos_ang = getBeamInfo()
+            addBeamInfo(fle, [beam_majaxis, beam_minaxis, pos_ang])
+        
+        if askForPermission("Do you want to include time info? (y/*)"):
+            isotBegin, isotEnd = getTimeInfo()
+            addDateInfo(fle, [isotBegin, isotEnd])
+        
+        if askForPermission("Do you want to include project code? (y/*)"):
+            telescope = getTelescopeInfo()
+            addTelescopeInfo(fle, telescope)
+    else:
+        beam, time, band, telescope = readConfigFile(configFile)
+        addBeamInfo(fle, beam)
+        addDateInfo(fle, time)
+        addBandInfo(fle, band)
+        addTelescopeInfo(fle, telescope)
     
 
 def askForPermission(question):
@@ -205,7 +213,15 @@ def getBeamInfo():
     
     return beam_majaxis, beam_minaxis, posang
 
-def getProjCode():
+def getTelescopeInfo():
+    flag = True
+    while flag:
+        print("Write array name: ")
+    try:
+        array = input('--> ')
+        flag = False
+    except:
+        print("Error! Try again")
     flag = True
     while flag:
         print("Write project code: ")
@@ -214,20 +230,75 @@ def getProjCode():
             flag = False
         except:
             print("Error! Try again")
-    return code
+    flag = True
+    while flag:
+        print("Write PI name: ")
+        try:
+            pi = input('--> ')
+            flag = False
+        except:
+            print("Error! Try again")
+    return [array, code, pi]
 
-def addProjCodeInfo(fle, code):
-    strList = [code.encode("ascii", "ignore")]
-    fle.create_dataset("PROJECT_CODE", data=strList)
+def addBandInfo(fle, band):
+    strList = [n.encode("ascii", "ignore") for n in band]
+    fle.create_dataset("BAND", data=strList)
 
-def addBeamInfo(fle, beam_majaxis, beam_minaxis, pos_ang):
-    fle.create_dataset("BEAM", data = np.array([beam_majaxis, beam_minaxis, pos_ang]))
+def addTelescopeInfo(fle, telescope):
+    strList = [code.encode("ascii", "ignore") for code in telescope]
+    fle.create_dataset("TELESCOPE", data=strList)
 
-def addDateInfo(fle, dateIsotBegin, dateIsotEnd):
+def addBeamInfo(fle, beam):
+    fle.create_dataset("BEAM", data = np.array(beam) )
+
+
+def readConfigFile(configFileName):
+    confile = configparser.ConfigParser()
+    confile.read(configFileName)
+    beam = []
+    time = []
+    band = []
+    telescope = []
+    if 'BEAM' in confile.sections():
+        beam.append(float(confile['BEAM']['beam_majaxis']))
+        beam.append(float(confile['BEAM']['beam_minaxis']))
+        beam.append(float(confile['BEAM']['beam_posang']))
+    if 'TIME' in confile.sections():
+        time.append(confile['TIME']['isot_begin'])
+        time.append(confile['TIME']['isor_end'])
+    if 'BAND' in confile.sections():
+        band.append(confile['BAND']['band_letter'])
+        band.append(confile['BAND']['rest_freq'])
+        band.append(confile['BAND']['molecule'])
+    if 'TELESCOPE' in confile.sections():
+        telescope.append(confile['TELESCOPE']['array'])
+        telescope.append(confile['TELESCOPE']['code'])
+        telescope.append(confile['TELESCOPE']['pi'])
+    return beam, time, band, telescope
+
+
+
+def readConfigJmfitandIspec(configFileName):
+    print(configFileName)
+    confile = configparser.ConfigParser()
+    confile.read(configFileName)
+    if 'FILES' in confile.sections():
+        jmfitFileName = confile['FILES']['jmfit_file']
+        ispecFileName = confile['FILES']['ispec_file']
+        jmfit = jmfitFile(jmfitFileName)
+        ispec = ispecFile(ispecFileName)
+        jmfit.calibrateVelocities(ispec)
+        return jmfit, ispec
+    else:
+        return None
+
+
+
+def addDateInfo(fle, date):
     #print(dateIsotBegin)
     #print(dateIsotEnd)
-    wppl = np.array([dateIsotBegin, dateIsotEnd], dtype=str)
-    strList = [n.encode("ascii", "ignore") for n in wppl]
+    #wppl = np.array([dateIsotBegin, dateIsotEnd], dtype=str)
+    strList = [n.encode("ascii", "ignore") for n in date]
     #wppl = np.void(wppl)
     fle.create_dataset("DATE", data = strList)
     #fle.attrs['DATE_BEGIN'] = dateIsotBegin
@@ -235,12 +306,24 @@ def addDateInfo(fle, dateIsotBegin, dateIsotEnd):
 
 
 if __name__ == '__main__':
-    eee = jmfitFile(sys.argv[1])
-    eespec = ispecFile(sys.argv[2])
-    eee.calibrateVelocities(eespec)
+
     if '-o' in sys.argv:
         index = sys.argv.index('-o')
         output_filename = sys.argv[index + 1]
     else:
         output_filename = 'out.hdf5'
-    makeHDF5File(output_filename, eee, eespec)
+    
+    if '-conf' in sys.argv:
+        index = sys.argv.index('-conf')
+        config_file = sys.argv[index + 1]
+    else:
+        config_file = None
+    
+    if config_file == None:
+        eee = jmfitFile(sys.argv[1])
+        eespec = ispecFile(sys.argv[2])
+        eee.calibrateVelocities(eespec)
+    else:
+        eee, eespec = readConfigJmfitandIspec(config_file)
+
+    makeHDF5File(output_filename, eee, eespec, config_file)
