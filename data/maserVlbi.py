@@ -31,6 +31,8 @@ class maserVlbi:
         self._getDate(self._fle)
         self._getBeam(self._fle)
         self._getProjectCode(self._fle)
+        self._getBandData(self._fle)
+        self._getSigmaData(self._fle)
 
         if self.verbose:
             print('-------------------------------')
@@ -83,7 +85,21 @@ class maserVlbi:
             self.band_letter = dset[0].decode("ascii")
             self.rest_freq = float(dset[1].decode("ascii"))
             self.molecule = dset[2].decode("ascii")
+            if self.verbose:
+                print(f'---> band: {self.band_letter}')
+                print(f'---> rest frequency: {self.rest_freq} MHz')
+                print(f'---> molecule: {self.molecule}')
         except:
             if self.verbose:
                 print(f"---> no project code found!")
+    
+    def _getSigmaData(self, fle):
+        try:
+            dset = fle['SIGMA']
+            self.sigma_level = float(dset[0])
+            if self.verbose:
+                print(f'---> 1-sigma level in emission-free channel: {self.sigma_level} Jy/beam')
+        except:
+            if self.verbose:
+                print(f"---> no sigma-level info found!")
 

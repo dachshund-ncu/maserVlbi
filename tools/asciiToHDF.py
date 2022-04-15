@@ -149,12 +149,17 @@ def makeHDF5File(filename, jmfit_file, ispec_file, configFile = None):
         if askForPermission("Do you want to include project code? (y/*)"):
             telescope = getTelescopeInfo()
             addTelescopeInfo(fle, telescope)
+        
+        if askForPermission("Do you want to include 1-sigma level? (y/*)"):
+            sigma = getSigmaInfo()
+            addSigmaInfo(fle, [sigma])
     else:
-        beam, time, band, telescope = readConfigFile(configFile)
+        beam, time, band, telescope, sigma = readConfigFile(configFile)
         addBeamInfo(fle, beam)
         addDateInfo(fle, time)
         addBandInfo(fle, band)
         addTelescopeInfo(fle, telescope)
+        addSigmaInfo(fle, [sigma])
     
 
 def askForPermission(question):
@@ -240,6 +245,17 @@ def getTelescopeInfo():
             print("Error! Try again")
     return [array, code, pi]
 
+def getSigmaInfo():
+    flag = True
+    while flag:
+        print("Write array name: ")
+    try:
+        sigma = float(input('--> '))
+        flag = False
+    except:
+        print("Error! Try again")
+    return sigma
+
 def addBandInfo(fle, band):
     strList = [n.encode("ascii", "ignore") for n in band]
     fle.create_dataset("BAND", data=strList)
@@ -251,6 +267,8 @@ def addTelescopeInfo(fle, telescope):
 def addBeamInfo(fle, beam):
     fle.create_dataset("BEAM", data = np.array(beam) )
 
+def addSigmaInfo(fle, sigma):
+    fle.create_dataset("SIGMA", data = np.array(sigma))
 
 def readConfigFile(configFileName):
     confile = configparser.ConfigParser()
@@ -274,7 +292,9 @@ def readConfigFile(configFileName):
         telescope.append(confile['TELESCOPE']['array'])
         telescope.append(confile['TELESCOPE']['code'])
         telescope.append(confile['TELESCOPE']['pi'])
-    return beam, time, band, telescope
+    if 'RMS' in confile.sections():
+        sigma = float(confile['RMS']['sigma_level'])
+    return beam, time, band, telescope, sigma
 
 
 
@@ -288,6 +308,10 @@ def readConfigJmfitandIspec(configFileName):
         jmfit = jmfitFile(jmfitFileName)
         ispec = ispecFile(ispecFileName)
         jmfit.calibrateVelocities(ispec)
+        if 'EXPORT' in confile.sections():
+            begin_chan = int(confile['EXPORT']['begin_chan'])
+            jmfit.chans = jmfit.chans + (begin_chan-1)
+            ispec.channels = ispec.channels + (begin_chan-1)
         return jmfit, ispec
     else:
         return None

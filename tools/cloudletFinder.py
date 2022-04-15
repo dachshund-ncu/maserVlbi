@@ -20,7 +20,14 @@ import matplotlib.gridspec as gridspec
 import numpy as np
 import matplotlib
 import sys
-sys.path.append("../data/")
+# --- custom modules ---
+from os.path import realpath
+scr_directory = realpath(__file__)
+tmp = scr_directory.split('/')
+scr_directory = ""
+for i in range(len(tmp)-1):
+    scr_directory += tmp[i] + '/'
+sys.path.append(scr_directory + "/../data/")
 from maserVlbi import maserVlbi
 
 matplotlib.use('Qt5Agg')
