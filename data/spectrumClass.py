@@ -15,3 +15,7 @@ class spectrumClass:
 
     def getJetColors():
         pass
+
+    def rotate(self, channels):
+        deltaVel = abs(self.velocity[1] - self.velocity[0])
+        self.velocity += deltaVel*channels

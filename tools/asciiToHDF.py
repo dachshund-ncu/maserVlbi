@@ -114,6 +114,9 @@ class ispecFile():
         '''
         self.channels, self.vlsr, self.fluxDensity = np.loadtxt(filename, unpack=True, usecols=(0,1,2))
         self.vlsr = self.vlsr / 1000.0 # calibrating into km/s
+    def rotate(self, no_of_channels):
+        deltaVel = abs(self.vlsr[1] - self.vlsr[0])
+        self.vlsr += deltaVel*no_of_channels
 
 def makeHDF5File(filename, jmfit_file, ispec_file, configFile = None):
     fle = h5py.File(filename, 'w')
@@ -296,7 +299,14 @@ def readConfigFile(configFileName):
         sigma = float(confile['RMS']['sigma_level'])
     return beam, time, band, telescope, sigma
 
-
+def readRotate(configFileName):
+    confile = configparser.ConfigParser()
+    confile.read(configFileName)
+    if 'ROTATE' in confile.sections():
+        no_of_rotated_channels = int(confile['ROTATE']['no_of_channels'])
+        return no_of_rotated_channels
+    else:
+        return 0
 
 def readConfigJmfitandIspec(configFileName):
     print(configFileName)
@@ -346,8 +356,16 @@ if __name__ == '__main__':
     if config_file == None:
         eee = jmfitFile(sys.argv[1])
         eespec = ispecFile(sys.argv[2])
-        eee.calibrateVelocities(eespec)
+        
     else:
         eee, eespec = readConfigJmfitandIspec(config_file)
 
+    if '-conf' in sys.argv:
+        rotateChans = readRotate(config_file)
+
+    if rotateChans != 0:
+        print(rotateChans)
+        eespec.rotate(rotateChans)
+
+    eee.calibrateVelocities(eespec)
     makeHDF5File(output_filename, eee, eespec, config_file)
