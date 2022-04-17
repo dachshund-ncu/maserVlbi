@@ -15,8 +15,9 @@ from PySide2 import QtCore, QtWidgets, QtGui
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 import matplotlib.pyplot as plt
-from matplotlib.figure import Figure
 import matplotlib.gridspec as gridspec
+from matplotlib.patches import Ellipse
+from matplotlib.widgets import RectangleSelector
 import numpy as np
 import matplotlib
 import sys
@@ -42,8 +43,12 @@ class cloudletFinder(QtWidgets.QApplication):
         self.__declareUIElements()
         self.__placeUIelements()
         self.__connectToSlots()
+        self.__setPlotTitle(self.data.project_code)
+        self.plot.setBeamProps(self.data.beam_minaxis, self.data.beam_majaxis, self.data.beam_posang)
+        #self.plot.setBeamProps(25,25,90)
         self.mainWindow.setGeometry(300, 300, 1366, 720)
         self.mainWindow.show()
+
     
     def __declareUIElements(self):
         self.mainWindow = QtWidgets.QMainWindow()
@@ -75,6 +80,7 @@ class cloudletFinder(QtWidgets.QApplication):
         self.showMarkRectangle = QtWidgets.QCheckBox(self.window)
         self.showSpots = QtWidgets.QCheckBox(self.window)
         self.showCloudlets = QtWidgets.QCheckBox(self.window)
+        self.showChannels = QtWidgets.QCheckBox(self.window)
         # --
         self.addToCloudlets.setText("Add to cloudlets")
         self.removeFromCloudlets.setText("Remove from cloudlets")
@@ -82,6 +88,9 @@ class cloudletFinder(QtWidgets.QApplication):
         self.showMarkRectangle.setText("Show mark range")
         self.showSpots.setText("Show spots")
         self.showCloudlets.setText("Show cloudlets")
+        self.showChannels.setText("Show channels")
+        # -
+        self.showMarkRectangle.setChecked(True)
 
         # --------------
         self.exitButton.setText("Exit")
@@ -96,6 +105,8 @@ class cloudletFinder(QtWidgets.QApplication):
         self.frame_right_hand_vbox.addWidget(self.showMarkRectangle)
         self.frame_right_hand_vbox.addWidget(self.showSpots)
         self.frame_right_hand_vbox.addWidget(self.showCloudlets)
+        self.frame_right_hand_vbox.addWidget(self.showCloudlets)
+        self.frame_right_hand_vbox.addWidget(self.showChannels)
         self.frame_right_hand_vbox.addWidget(self.exitButton)
         # --
         self.layout.addWidget(self.frame_spots, 0,0, 5,1)
@@ -110,12 +121,41 @@ class cloudletFinder(QtWidgets.QApplication):
 
     def __connectToSlots(self):
         self.exitButton.clicked.connect(QtWidgets.QApplication.exit)
-    
+        self.showBeam.clicked.connect(self.__beam_visible)
+        self.kk = self.plot.fig.canvas.mpl_connect('button_press_event', self.plot.onClick)
+        self.showMarkRectangle.clicked.connect(self.__rectangle_visible)
 
     def plotSpots(self):
         b = self.plot.addSpotPlot(self.data.spots, self.data.spectrum)
         self.plot.draw()
+    
+    def __setPlotTitle(self, title):
+        self.plot.axSpots.set_title(title)
 
+    
+    def __beam_visible(self):
+        if not self.showBeam.isChecked():
+            self.plot.beam_ellipse.set_visible(False)
+            self.plot.fig.canvas.mpl_disconnect(self.kk)
+        else:
+            self.plot.beam_ellipse.set_visible(True)
+            self.kk = self.plot.fig.canvas.mpl_connect('button_press_event', self.plot.onClick)
+            if self.plot.selector.active:
+                self.plot.selector.set_active(False)
+                self.showMarkRectangle.setChecked(False)
+        self.plot.draw()
+
+    def __rectangle_visible(self):
+        # setting span selector active / inactive
+        if not self.showMarkRectangle.isChecked():
+            self.plot.selector.set_active(False)
+        else:
+            if self.showBeam.isChecked():
+                self.showBeam.setChecked(False)
+                self.__beam_visible()
+            self.plot.selector.set_active(True)
+
+        self.plot.fig.canvas.draw_idle()
 
 class plotCanvas(FigureCanvas):
     def __init__(self):
@@ -123,6 +163,7 @@ class plotCanvas(FigureCanvas):
         super(plotCanvas, self).__init__(self.fig)
         self.gs = gridspec.GridSpec(1,2, width_ratios=[30,1], figure=self.fig, wspace=0.0)
         self.__declareNecessaryAxes()
+        self.__declareCustomWidgets()
     def __declareNecessaryAxes(self):
         self.axSpots = self.fig.add_subplot(self.gs[0,0])
         self.axSpots.invert_xaxis()
@@ -147,6 +188,39 @@ class plotCanvas(FigureCanvas):
         ax.yaxis.set_tick_params(direction='in', width=1, length = 3, right=True, left=True)
         ax.yaxis.set_tick_params(direction='in', width=1, length = 3, which='minor', right=True, left=True)
 
+    def __declareCustomWidgets(self):
+        '''
+        This is simple methood that enables beam plot and rectangle selector
+        '''
+        self.selected_range = [0,0,0,0]
+        self.beam_ellipse = Ellipse([0,0], 4.5, 4.5, angle=0.0, fc='none', ec='black', visible=False)
+        self.selector = RectangleSelector(self.axSpots, self.line_select_callback, drawtype='box', useblit=True, button=[1,3], minspanx=2, minspany=2, spancoords='pixels', interactive=True)
+        self.axSpots.add_patch(self.beam_ellipse)
+
+    def line_select_callback(self, eclick, erelease):
+        # 'eclick' and 'erelease' are just mouse right button press and release signals
+        x1, y1 = eclick.xdata, eclick.ydata
+        x2, y2 = erelease.xdata, erelease.ydata
+
+        # setting global table of ranges
+        self.selected_range = [x1,x2,y1,y2]
+    
+    '''
+    METHOODS FOR PARTS OF THE PLOT
+    '''
+    def setBeamProps(self, x_axis, y_axis, posang):
+        #self.beam_ellipse.update_from(Ellipse(self.beam_ellipse.get_center(), x_axis, y_axis, angle=posang, ec='black', fc='none', visible=False))
+        #self.axSpots.add_patch(self.beam_ellipse)
+        self.beam_ellipse.set_width(x_axis)
+        self.beam_ellipse.set_height(y_axis)
+        self.beam_ellipse.angle = posang
+    
+    def onClick(self, event):
+        x,y = event.xdata, event.ydata
+        if x == None or y==None:
+            return
+        self.beam_ellipse.set_center([x,y])
+        self.fig.canvas.draw_idle()
 
 if __name__ == '__main__':
     app = cloudletFinder(sys.argv[1])
