@@ -195,17 +195,17 @@ def getTimeInfo():
 def getBeamInfo():
     flag = True
     while flag:
-        print("Provide beam major axis: ")
+        print("Provide beam RA axis: ")
         try:
-            beam_majaxis = float(input('--> '))
+            beam_raAxis = float(input('--> '))
             flag = False
         except:
             print("Error! Try again")
     flag = True
     while flag:
-        print("Provide beam minor axis: ")
+        print("Provide beam DEC axis: ")
         try:
-            beam_minaxis = float(input('--> '))
+            beam_decAxis = float(input('--> '))
             flag = False
         except:
             print("Error! Try again")
@@ -219,7 +219,7 @@ def getBeamInfo():
         except:
             print("Error! Try again")
     
-    return beam_majaxis, beam_minaxis, posang
+    return beam_raAxis, beam_decAxis, posang
 
 def getTelescopeInfo():
     flag = True
@@ -281,8 +281,8 @@ def readConfigFile(configFileName):
     band = []
     telescope = []
     if 'BEAM' in confile.sections():
-        beam.append(float(confile['BEAM']['beam_majaxis']))
-        beam.append(float(confile['BEAM']['beam_minaxis']))
+        beam.append(float(confile['BEAM']['beam_raAxis']))
+        beam.append(float(confile['BEAM']['beam_decAxis']))
         beam.append(float(confile['BEAM']['beam_posang']))
     if 'TIME' in confile.sections():
         time.append(confile['TIME']['isot_begin'])
@@ -364,7 +364,6 @@ if __name__ == '__main__':
         rotateChans = readRotate(config_file)
 
     if rotateChans != 0:
-        print(rotateChans)
         eespec.rotate(rotateChans)
 
     eee.calibrateVelocities(eespec)

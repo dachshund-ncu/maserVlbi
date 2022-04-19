@@ -44,7 +44,9 @@ class cloudletFinder(QtWidgets.QApplication):
         self.__placeUIelements()
         self.__connectToSlots()
         self.__setPlotTitle(self.data.project_code)
-        self.plot.setBeamProps(self.data.beam_minaxis, self.data.beam_majaxis, self.data.beam_posang)
+        self.plot.setBeamProps(self.data.beam_raAxis, self.data.beam_decAxis, self.data.beam_posang)
+        self.plot.makeChannelPlot(self.data.spots.dRA, self.data.spots.dDEC, self.data.spots.channels)
+        self.cloudletsTab = []
         #self.plot.setBeamProps(25,25,90)
         self.mainWindow.setGeometry(300, 300, 1366, 720)
         self.mainWindow.show()
@@ -91,7 +93,7 @@ class cloudletFinder(QtWidgets.QApplication):
         self.showChannels.setText("Show channels")
         # -
         self.showMarkRectangle.setChecked(True)
-
+        self.showSpots.setChecked(True)
         # --------------
         self.exitButton.setText("Exit")
 
@@ -124,15 +126,46 @@ class cloudletFinder(QtWidgets.QApplication):
         self.showBeam.clicked.connect(self.__beam_visible)
         self.kk = self.plot.fig.canvas.mpl_connect('button_press_event', self.plot.onClick)
         self.showMarkRectangle.clicked.connect(self.__rectangle_visible)
-
+        self.showSpots.clicked.connect(self.__spots_visible)
+        self.showChannels.clicked.connect(self.__channels_visible)
+        self.addToCloudlets.clicked.connect(self.__addToCloudletList)
     def plotSpots(self):
         b = self.plot.addSpotPlot(self.data.spots, self.data.spectrum)
         self.plot.draw()
     
+
     def __setPlotTitle(self, title):
         self.plot.axSpots.set_title(title)
 
-    
+    def getSpotsFromRange(self, ranges):
+        xmin, xmax, ymin, ymax = ranges
+        dRAinRange = []
+        dRA_errinRange = []
+        dDECnRange = []
+        dDEC_errinRange = []
+        fluxinRange = []
+        flux_errinRange = []
+        channelsinRange = []
+        velocityinRange = []
+        spots = self.data.spots
+        for i in range(spots.dRA.size):
+            if spots.dRA[i] > xmin and spots.dRA[i] < xmax and spots.dDEC[i] > ymin and spots.dDEC[i] < ymax:
+                dRAinRange.append(spots.dRA[i])
+                dRA_errinRange.append(spots.dRA[i])
+                dDECnRange.append(spots.dRA[i])
+                dDEC_errinRange.append(spots.dRA[i])
+                fluxinRange.append(spots.dRA[i])
+                flux_errinRange.append(spots.dRA[i])
+                channelsinRange.append(spots.dRA[i])
+                velocityinRange.append(spots.dRA[i])
+        
+        return np.asarray(dRAinRange), np.asarray(dRA_errinRange), np.asarray(dDECnRange), np.asarray(dDEC_errinRange), np.asarray(fluxinRange), np.asarray(flux_errinRange), np.asarray(channelsinRange), np.asarray(velocityinRange)
+
+
+    '''
+    BELOW WE STORE SLOTS
+    '''
+
     def __beam_visible(self):
         if not self.showBeam.isChecked():
             self.plot.beam_ellipse.set_visible(False)
@@ -154,8 +187,23 @@ class cloudletFinder(QtWidgets.QApplication):
                 self.showBeam.setChecked(False)
                 self.__beam_visible()
             self.plot.selector.set_active(True)
-
         self.plot.fig.canvas.draw_idle()
+    
+    def __spots_visible(self):
+        self.plot.spotScatterPlot.set_visible(self.showSpots.isChecked())
+        self.plot.fig.canvas.draw_idle()
+    
+    def __channels_visible(self):
+        self.plot.setChannelLabelsVisible(self.showChannels.isChecked())
+
+    def __addToCloudletList(self):
+        if not self.plot.selector.active:
+            print("selector not active!")
+            return
+        ranges = self.plot.getMarkedRange()
+        dRA, dRA_err, dDEC, dDEC_err, flux, flux_err, channels, velocity = self.getSpotsFromRange(ranges)
+        #cloudlet = self.makeCloudlet(dRA, dRA_err, dDEC, dDEC_err, flux, flux_err, channels, velocity)
+        
 
 class plotCanvas(FigureCanvas):
     def __init__(self):
@@ -175,12 +223,12 @@ class plotCanvas(FigureCanvas):
 
     def addSpotPlot(self, spots, spectrum):
         colors = spots.getJetColors(spectrum.velocity.min(), spectrum.velocity.max())
-        b = self.axSpots.scatter(spots.dRA, spots.dDEC, s=np.log(spots.flux*1000.0)**2.0 * 10, edgecolor = colors, facecolor='none')
+        self.spotScatterPlot = self.axSpots.scatter(spots.dRA, spots.dDEC, s=np.log(spots.flux*1000.0)**2.0 * 10, edgecolor = colors, facecolor='none')
         p = plt.cm.ScalarMappable(cmap=plt.cm.jet)
         p.set_array(spectrum.velocity)
         self.fig.colorbar(p, ax=self.axSpots, cax = self.axCbar, label="V$_{LSR}\,$(km$\,$s$^{-1}$)")
         self.axCbar.set_ylim(spectrum.velocity.min(), spectrum.velocity.max())
-        return b
+        return self.spotScatterPlot
     
     def __makeFancyTicks(self, ax):
         ax.xaxis.set_tick_params(direction='in', width=1, length = 3, top = True, bottom=True)
@@ -205,6 +253,12 @@ class plotCanvas(FigureCanvas):
         # setting global table of ranges
         self.selected_range = [x1,x2,y1,y2]
     
+    def makeChannelPlot(self, x,y,channels):
+        self.spotChannelLabels = []
+        for index, channel in enumerate(channels):
+            w = self.axSpots.text(x[index], y[index], str(channel), visible=False)
+            self.spotChannelLabels.append(w)
+
     '''
     METHOODS FOR PARTS OF THE PLOT
     '''
@@ -221,6 +275,14 @@ class plotCanvas(FigureCanvas):
             return
         self.beam_ellipse.set_center([x,y])
         self.fig.canvas.draw_idle()
+    
+    def setChannelLabelsVisible(self, flag):
+        [i.set_visible(flag) for i in self.spotChannelLabels]
+        self.fig.canvas.draw_idle()
+    
+    def getMarkedRange(self):
+        return self.selector.extents
+
 
 if __name__ == '__main__':
     app = cloudletFinder(sys.argv[1])

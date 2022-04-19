@@ -56,11 +56,12 @@ class maserVlbi:
         try:
             dset = fle['BEAM']
             bmarray = np.array(dset)
-            self.beam_majaxis = bmarray[0]
-            self.beam_minaxis = bmarray[1]
+            
+            self.beam_raAxis = bmarray[0]
+            self.beam_decAxis = bmarray[1]
             self.beam_posang = bmarray[2]
             if self.verbose:
-                print(f'---> beam: {self.beam_majaxis} x {self.beam_minaxis}, {self.beam_posang}')
+                print(f'---> beam: {self.beam_raAxis} x {self.beam_decAxis}, {self.beam_posang}')
         except:
             if self.verbose:
                 print(f"---> no beam data found!")
