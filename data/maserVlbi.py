@@ -27,7 +27,8 @@ class maserVlbi:
 
         self._fle = h5py.File(filename, 'r')
         # -- reading spots data --
-        self.spots = spotsClass(self._fle['SPOTS'])
+        self.spots = spotsClass()
+        self.spots.readDataFromGroup(self._fle['SPOTS'])
         # -- reading spec data --
         self.spectrum = spectrumClass(self._fle['SPECTRUM'])
         # -- optional: --

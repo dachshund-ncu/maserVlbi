@@ -6,10 +6,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class spotsClass:
-    def __init__(self, hdf5Group):
-        self.__readDataFromGroup(hdf5Group)
-    
-    def __readDataFromGroup(self, hdf5Group):
+    def __init__(self):
+        pass
+    def readDataFromGroup(self, hdf5Group):
         self.dRA = np.array(hdf5Group['RA'])
         self.dRA_err = np.array(hdf5Group['RA_ERR'])
         self.dDEC = np.array(hdf5Group['DEC'])
@@ -45,3 +44,20 @@ class spotsClass:
                 return_flux.append(flux)
                 return_vel.append(vel)
         return np.asarray(return_dRA), np.asarray(return_dDEC), np.asarray(return_flux), np.asarray(return_vel)
+    
+    '''
+    INITIALIZING THIS CLASS FROM NO HDF5:
+    '''
+    def set_dra(self, dra, dra_err):
+        self.dRA = dra
+        self.dRA_err = dra_err
+    def set_ddec(self, ddec, ddec_err):
+        self.dDEC = ddec
+        self.dDEC_err = ddec_err
+    def set_flux(self, f, f_er):
+        self.flux= f
+        self.flux_err = f_er
+    def set_channels(self, ch):
+        self.channels = ch
+    def set_velocity(self, vel):
+        self.velocity = vel

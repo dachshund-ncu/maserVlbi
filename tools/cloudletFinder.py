@@ -242,7 +242,7 @@ class plotCanvas(FigureCanvas):
         '''
         self.selected_range = [0,0,0,0]
         self.beam_ellipse = Ellipse([0,0], 4.5, 4.5, angle=0.0, fc='none', ec='black', visible=False)
-        self.selector = RectangleSelector(self.axSpots, self.line_select_callback, drawtype='box', useblit=True, button=[1,3], minspanx=2, minspany=2, spancoords='pixels', interactive=True)
+        self.selector = RectangleSelector(self.axSpots, self.line_select_callback, useblit=True, button=[1,3], minspanx=2, minspany=2, spancoords='pixels', interactive=True)
         self.axSpots.add_patch(self.beam_ellipse)
 
     def line_select_callback(self, eclick, erelease):
