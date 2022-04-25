@@ -30,6 +30,7 @@ for i in range(len(tmp)-1):
     scr_directory += tmp[i] + '/'
 sys.path.append(scr_directory + "/../data/")
 from maserVlbi import maserVlbi
+from cloudletClass import cloudletClass
 
 matplotlib.use('Qt5Agg')
 plt.rc('font', family='serif', style='normal', variant='normal', weight='normal', stretch='normal', size=10)
@@ -151,16 +152,18 @@ class cloudletFinder(QtWidgets.QApplication):
         for i in range(spots.dRA.size):
             if spots.dRA[i] > xmin and spots.dRA[i] < xmax and spots.dDEC[i] > ymin and spots.dDEC[i] < ymax:
                 dRAinRange.append(spots.dRA[i])
-                dRA_errinRange.append(spots.dRA[i])
-                dDECnRange.append(spots.dRA[i])
-                dDEC_errinRange.append(spots.dRA[i])
-                fluxinRange.append(spots.dRA[i])
-                flux_errinRange.append(spots.dRA[i])
-                channelsinRange.append(spots.dRA[i])
-                velocityinRange.append(spots.dRA[i])
+                dRA_errinRange.append(spots.dRA_err[i])
+                dDECnRange.append(spots.dDEC[i])
+                dDEC_errinRange.append(spots.dDEC_err[i])
+                fluxinRange.append(spots.flux[i])
+                flux_errinRange.append(spots.flux_err[i])
+                channelsinRange.append(spots.channels[i])
+                velocityinRange.append(spots.velocity[i])
         
         return np.asarray(dRAinRange), np.asarray(dRA_errinRange), np.asarray(dDECnRange), np.asarray(dDEC_errinRange), np.asarray(fluxinRange), np.asarray(flux_errinRange), np.asarray(channelsinRange), np.asarray(velocityinRange)
 
+    def addToList(self, cloudlet):
+        self.cloudletList.addItem(f'({round(cloudlet.dRA, 2)},{round(cloudlet.dDEC, 2)}): {round(cloudlet.maxFlux, 2)} Jy/beam')
 
     '''
     BELOW WE STORE SLOTS
@@ -201,7 +204,11 @@ class cloudletFinder(QtWidgets.QApplication):
             print("selector not active!")
             return
         ranges = self.plot.getMarkedRange()
-        dRA, dRA_err, dDEC, dDEC_err, flux, flux_err, channels, velocity = self.getSpotsFromRange(ranges)
+        #dRA, dRA_err, dDEC, dDEC_err, flux, flux_err, channels, velocity = self.getSpotsFromRange(ranges)
+        cloudlet = cloudletClass()
+        cloudlet.setAttributes(*self.getSpotsFromRange(ranges))
+        cloudlet.calcProps()
+        self.addToList(cloudlet)
         #cloudlet = self.makeCloudlet(dRA, dRA_err, dDEC, dDEC_err, flux, flux_err, channels, velocity)
         
 
