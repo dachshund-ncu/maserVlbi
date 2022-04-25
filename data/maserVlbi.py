@@ -10,6 +10,9 @@ from spotClass import spotsClass
 from spectrumClass import spectrumClass
 from astropy.time import Time
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+from matplotlib.collections import LineCollection
 import datetime
 
 class maserVlbi:
@@ -33,10 +36,14 @@ class maserVlbi:
         self._getProjectCode(self._fle)
         self._getBandData(self._fle)
         self._getSigmaData(self._fle)
+        self._getOrigin(self._fle)
 
         if self.verbose:
             print('-------------------------------')
 
+    '''
+    PRIVATE:
+    '''
     def _getDate(self, fle):
         try:
             dset = fle['DATE']
@@ -104,3 +111,63 @@ class maserVlbi:
             if self.verbose:
                 print(f"---> no sigma-level info found!")
 
+    def _getOrigin(self, fle):
+        dset = fle['ORIGIN']
+        arr = np.array(dset)
+        self.originRA = arr[0]
+        self.originDEC = arr[1]
+    
+    def __makeFancyTicks(self, ax):
+        ax.xaxis.set_tick_params(direction='in', width=1, length = 3, top = True, bottom=True)
+        ax.xaxis.set_tick_params(direction='in', width=1, length = 3, which='minor', top = True, bottom=True)
+        ax.yaxis.set_tick_params(direction='in', width=1, length = 3, right=True)
+        ax.yaxis.set_tick_params(direction='in', width=1, length = 3, which='minor', right=True)
+
+    '''
+    PUBLIC:
+    '''
+    def plot(self):
+        # --- figure --- 
+        fig = plt.figure(figsize=(5.8,7))
+        gs = gridspec.GridSpec(2, 1, height_ratios=[1,3])
+
+        # --- map ---
+        vmin = self.spectrum.velocity.min()
+        vmax = self.spectrum.velocity.max()
+        axMap = fig.add_subplot(gs[1,0])
+        
+        colors = self.spots.getJetColors(vmin = vmin, vmax = vmax)
+
+        axMap.scatter(self.spots.dRA, self.spots.dDEC, s=np.log(self.spots.flux * 1000)**2.0 * 5, c=colors, edgecolor='black')
+        axMap.invert_xaxis()
+        axMap.set_xlabel('$\Delta$RA')
+        axMap.set_ylabel('$\Delta$DEC')
+
+        # -- spectrum ---
+        axSpec = fig.add_subplot(gs[0,0])
+        points = np.array([self.spectrum.velocity, self.spectrum.flux]).T.reshape(-1, 1, 2)
+        segments = np.concatenate([points[:-1], points[1:]], axis=1)
+        norm = plt.Normalize(vmin, vmax)
+        lc = LineCollection(segments, cmap='jet', norm=norm)
+        lc.set_array(self.spectrum.velocity)
+        axSpec.add_collection(lc)
+        axSpec.set_xlim(self.spectrum.velocity.min(), self.spectrum.velocity.max())
+        dst = self.spectrum.flux.max() - self.spectrum.flux.min()
+        axSpec.set_ylim(self.spectrum.flux.min() - 0.05 * dst, self.spectrum.flux.max() + 0.05 * dst)
+        axSpec.set_xlabel("V$_{LSR}\,$(km$\,$s$^{-1}$)")
+        axSpec.set_ylabel("Flux density (Jy)")
+
+        # -- other --
+        axSpec.tick_params(labelbottom=False,labeltop=True)
+        axSpec.xaxis.set_label_position('top')
+
+        # -- fancy ticks ---
+        self.__makeFancyTicks(axMap)
+        self.__makeFancyTicks(axSpec)
+
+        plt.subplots_adjust(top=0.92, bottom=0.085, left=0.095, right=0.950, hspace=0.045)
+
+        tmpPlot, = axMap.plot(np.nan, np.nan, label=self.project_code)
+        axMap.legend(handles=[tmpPlot], loc="upper right", handlelength=0, handletextpad=0, framealpha = 0.9)
+
+        plt.show()
