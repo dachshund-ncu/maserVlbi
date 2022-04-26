@@ -8,6 +8,7 @@ Mainly it reads the HDF5 files
 import h5py
 from spotClass import spotsClass
 from spectrumClass import spectrumClass
+from cloudletClass import cloudletClass
 from astropy.time import Time
 import numpy as np
 import matplotlib.pyplot as plt
@@ -38,7 +39,7 @@ class maserVlbi:
         self._getBandData(self._fle)
         self._getSigmaData(self._fle)
         self._getOrigin(self._fle)
-
+        self._getCloudlets(self._fle)
         if self.verbose:
             print('-------------------------------')
 
@@ -118,15 +119,37 @@ class maserVlbi:
         self.originRA = arr[0]
         self.originDEC = arr[1]
     
+    def _getCloudlets(self, fle):
+        self.cloudlets = []
+        try:
+            dset = fle['CLOUDLETS']
+            if (self.verbose):
+                print(f"---> cloudlet information found!")
+        except:
+            if (self.verbose):
+                print(f"---> no cloudlet information found!")
+        
     def __makeFancyTicks(self, ax):
         ax.xaxis.set_tick_params(direction='in', width=1, length = 3, top = True, bottom=True)
         ax.xaxis.set_tick_params(direction='in', width=1, length = 3, which='minor', top = True, bottom=True)
         ax.yaxis.set_tick_params(direction='in', width=1, length = 3, right=True)
         ax.yaxis.set_tick_params(direction='in', width=1, length = 3, which='minor', right=True)
+    
+
 
     '''
     PUBLIC:
     '''
+    def appendCloudlet(self, cloudletObj):
+        self.cloudlets.append(cloudletObj)
+    
+    def removeCloudlet(self, index):
+        self.cloudlets.pop(index)
+    
+    def printCloudlets(self):
+        for cl in self.cloudlets:
+            print(cl)
+
     def plot(self):
         # --- figure --- 
         fig = plt.figure(figsize=(5.8,7))

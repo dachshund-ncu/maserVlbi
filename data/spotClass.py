@@ -45,6 +45,9 @@ class spotsClass:
                 return_vel.append(vel)
         return np.asarray(return_dRA), np.asarray(return_dDEC), np.asarray(return_flux), np.asarray(return_vel)
     
+    def getPropsFromIndex(self, index):
+        return self.dRA[index], self.dDEC[index], self.flux[index], self.velocity[index]
+
     '''
     INITIALIZING THIS CLASS FROM NO HDF5:
     '''
