@@ -32,6 +32,10 @@ class cloudletClass:
         self.spots.set_channels(channels)
         self.spots.set_velocity(velocity)
     
+    def loadFromHDF(self, group):
+        self.spots = spotsClass()
+        self.spots.readDataFromGroup(group)
+
     def calcProps(self):
         '''
         To be used only after 'SPOTS' attribute is created

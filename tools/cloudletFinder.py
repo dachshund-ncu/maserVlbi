@@ -38,8 +38,17 @@ plt.rc('font', family='serif', style='normal', variant='normal', weight='normal'
 
 class cloudletFinder(QtWidgets.QApplication):
     def __init__(self, filename):
+        '''
+        Initializes the App instance
+        It likely does a bit too much at the moment:
+        -> loads data
+        -> declares UI
+        -> organizes UI
+        -> connects UIelements to slots
+        -> fills spot list
+        '''
         super().__init__()
-        self.data = maserVlbi(filename)
+        self.data = maserVlbi(filename, verbose=True)
 
         self.__declareUIElements()
         self.__placeUIelements()
@@ -49,12 +58,15 @@ class cloudletFinder(QtWidgets.QApplication):
         self.plot.makeChannelPlot(self.data.spots.dRA, self.data.spots.dDEC, self.data.spots.channels)
         self.cloudletsTab = []
         self.__fillSpotsList()
-        #self.plot.setBeamProps(25,25,90)
+        self.__fillCloudletList()
         self.mainWindow.setGeometry(300, 300, 1366, 720)
         self.mainWindow.show()
 
     
     def __declareUIElements(self):
+        '''
+        Simply declares UI elements
+        '''
         self.mainWindow = QtWidgets.QMainWindow()
         self.window = QtWidgets.QWidget()
         self.layout = QtWidgets.QGridLayout(self.window)
@@ -79,6 +91,7 @@ class cloudletFinder(QtWidgets.QApplication):
         self.cloudletList = QtWidgets.QListWidget()
         self.addToCloudlets = QtWidgets.QPushButton(self.window)
         self.removeFromCloudlets = QtWidgets.QPushButton(self.window)
+        self.saveCloudlets = QtWidgets.QPushButton(self.window)
         # -- checkboxes --
         self.showBeam = QtWidgets.QCheckBox(self.window)
         self.showMarkRectangle = QtWidgets.QCheckBox(self.window)
@@ -95,6 +108,7 @@ class cloudletFinder(QtWidgets.QApplication):
         self.showCloudlets.setText("Show cloudlets")
         self.showChannels.setText("Show channels")
         self.showMarker.setText("Show spot marker")
+        self.saveCloudlets.setText("Save cloudlets")
         # -
         self.showMarkRectangle.setChecked(True)
         self.showSpots.setChecked(True)
@@ -103,11 +117,15 @@ class cloudletFinder(QtWidgets.QApplication):
         self.exitButton.setText("Exit")
 
     def __placeUIelements(self):
+        '''
+        Simply places UI elements correctly
+        '''
         self.frame_spots_vbox.addWidget(self.spotList)
         self.frame_cloudlets_vbox.addWidget(self.cloudletList)
         # --
         self.frame_right_hand_vbox.addWidget(self.addToCloudlets)
         self.frame_right_hand_vbox.addWidget(self.removeFromCloudlets)
+        self.frame_right_hand_vbox.addWidget(self.saveCloudlets)
         self.frame_right_hand_vbox.addWidget(self.showBeam)
         self.frame_right_hand_vbox.addWidget(self.showMarkRectangle)
         self.frame_right_hand_vbox.addWidget(self.showSpots)
@@ -128,6 +146,10 @@ class cloudletFinder(QtWidgets.QApplication):
             self.layout.setColumnStretch(i,1)
 
     def __connectToSlots(self):
+        '''
+        Here every connection to button / checkbox / list / plot is gathered
+        Nothing special about this method tbh.
+        '''
         self.exitButton.clicked.connect(QtWidgets.QApplication.exit)
         self.showBeam.clicked.connect(self.__beam_visible)
         self.kk = self.plot.fig.canvas.mpl_connect('button_press_event', self.plot.onClick)
@@ -136,20 +158,33 @@ class cloudletFinder(QtWidgets.QApplication):
         self.showChannels.clicked.connect(self.__channels_visible)
         self.addToCloudlets.clicked.connect(self.__addToCloudletList)
         self.removeFromCloudlets.clicked.connect(self.__removeFromCloudletList)
+        self.saveCloudlets.clicked.connect(self.__saveCloudletsToFile)
         #QtCore.QObject.connect(self.spotList, QtCore.SIGNAL('currentItemChanged()'), self.__plotMarkerOnClick)
         self.spotList.currentItemChanged.connect(self.__plotMarkerOnClick)
         self.showMarker.clicked.connect(self.__markerVisibility)
 
     def plotSpots(self):
+        '''
+        Spots are plotted ONLY after invoking this method
+        '''
         b = self.plot.addSpotPlot(self.data.spots, self.data.spectrum)
         self.plot.draw()
         self.spotList.setCurrentRow(0)
     
 
     def __setPlotTitle(self, title):
+        '''
+        Dunno what is this method doing here tbh.
+        '''
         self.plot.axSpots.set_title(title)
 
     def getSpotsFromRange(self, ranges):
+        '''
+        Returns attributes from spots, that are placed within ranges specified in the
+        arg.
+        range should be: [x_min, x_max, y_min, y_max]
+        Returns 8 x numpy.ndarray
+        '''
         xmin, xmax, ymin, ymax = ranges
         dRAinRange = []
         dRA_errinRange = []
@@ -170,22 +205,46 @@ class cloudletFinder(QtWidgets.QApplication):
                 flux_errinRange.append(spots.flux_err[i])
                 channelsinRange.append(spots.channels[i])
                 velocityinRange.append(spots.velocity[i])
-        
         return np.asarray(dRAinRange), np.asarray(dRA_errinRange), np.asarray(dDECnRange), np.asarray(dDEC_errinRange), np.asarray(fluxinRange), np.asarray(flux_errinRange), np.asarray(channelsinRange), np.asarray(velocityinRange)
 
     def addToList(self, cloudlet):
+        '''
+        Adds entry to cloudletList
+        '''
         self.cloudletList.addItem(f'({round(cloudlet.dRA, 2)},{round(cloudlet.dDEC, 2)}): {round(cloudlet.maxFlux, 2)} Jy/beam')
 
     def __fillSpotsList(self):
+        '''
+        Fills spotList with entries about spots themselves
+        '''
         for ra, dec, vel, flux in zip(self.data.spots.dRA, self.data.spots.dDEC, self.data.spots.velocity, self.data.spots.flux):
             self.spotList.addItem(f'({round(ra, 2)},{round(dec, 2)}): {round(vel, 2)} km/s, {round(flux, 2)} Jy / beam ')
         #self.spotList.setCurrentRow(0)
 
+    def __fillCloudletList(self):
+        '''
+        Fills cloudletList with entries about cloudlets
+        '''
+        if len(self.data.cloudlets) > 0:
+            for cloudlet in self.data.cloudlets:
+                self.addToList(cloudlet)
+            self.cloudletList.setCurrentRow(0)
+
     '''
-    BELOW WE STORE SLOTS
+    ==========================
+    == BELOW WE STORE SLOTS ==
+    ==========================
     '''
 
+    '''
+    BEAM AND RECT. SELECTOR VISIBILITY
+    '''
     def __beam_visible(self):
+        '''
+        Sets beam visible or not - since beam and rect. zoom cannot be visible at 
+        the same time due to left mouse click conflict, we handle rect. zoom 
+        visibility to some extend as well
+        '''
         if not self.showBeam.isChecked():
             self.plot.beam_ellipse.set_visible(False)
             self.plot.fig.canvas.mpl_disconnect(self.kk)
@@ -196,9 +255,11 @@ class cloudletFinder(QtWidgets.QApplication):
                 self.plot.selector.set_active(False)
                 self.showMarkRectangle.setChecked(False)
         self.plot.draw()
-
     def __rectangle_visible(self):
-        # setting span selector active / inactive
+        '''
+        Similar to the __beam_visible, but this handles rectangle visibility and
+        being active
+        '''
         if not self.showMarkRectangle.isChecked():
             self.plot.selector.set_active(False)
         else:
@@ -208,36 +269,40 @@ class cloudletFinder(QtWidgets.QApplication):
             self.plot.selector.set_active(True)
         self.plot.fig.canvas.draw_idle()
     
+    '''
+    SPOTS AND CHANNEL VISIBILITY
+    '''
     def __spots_visible(self):
         self.plot.spotScatterPlot.set_visible(self.showSpots.isChecked())
         self.plot.fig.canvas.draw_idle()
-    
     def __channels_visible(self):
         self.plot.setChannelLabelsVisible(self.showChannels.isChecked())
 
+    '''
+    CLOUDLET ADDING AND REMOVING
+    '''
     def __addToCloudletList(self):
         '''
-        Adds cloudlet to the list - takes ranges from selector, searches for spots within ranges and creates classCloudlet object, that holds gathered data
-        On the end - adds this data to the main "data" object (class: maserVlbi)
+        Adds cloudlet to the list - takes ranges from selector, searches for spots 
+        within ranges and creates classCloudlet object, that holds gathered data.
+        In the end - adds this data to the main "data" object (class: maserVlbi)
         If there is no spots in marked range, this slot should do nothing (return)
         '''
-        
         if not self.plot.selector.active:
             print("selector not active!")
             return
-        
+        # -
         ranges = self.plot.getMarkedRange()
-        spots = self.getSpotsFromRange(ranges)
-        if len(spots[0]) < 1:
+        spotsInRange = self.getSpotsFromRange(ranges)
+        if len(spotsInRange[0]) < 1:
             return
-        
+        # -
         cloudlet = cloudletClass()
-        cloudlet.setAttributes(*spots)
+        cloudlet.setAttributes(*spotsInRange)
         cloudlet.calcProps()
-
+        # -
         self.addToList(cloudlet) # <--- ADDS ONLY TO THE INTERFACE
         self.data.appendCloudlet(cloudlet) # <--- THIS IS TO HOLD ACTUAL DATA
-    
     def __removeFromCloudletList(self):
         '''
         Simply removes cloudlet from the list
@@ -248,16 +313,26 @@ class cloudletFinder(QtWidgets.QApplication):
             index = self.cloudletList.currentRow()
             self.data.removeCloudlet(index)
             self.cloudletList.takeItem(index)
-            print('-------------------------')
-            self.data.printCloudlets()
         except:
             return    
 
+    def __saveCloudletsToFile(self):
+        self.data.saveCloudlets()
+
+    '''
+    SPOT MARKER
+    '''
     def __plotMarkerOnClick(self):
+        '''
+        This slot sets circle marker on the spot, chosen from spotList
+        Very simple
+        '''
         x,y,flux,vel = self.data.spots.getPropsFromIndex(self.spotList.currentRow())
         self.plot.plotMarker(x,y,flux)
-    
     def __markerVisibility(self):
+        '''
+        This slot sets marker visibility
+        '''
         self.plot.markerPlot.set_visible(self.showMarker.isChecked())
         self.plot.fig.canvas.draw_idle()
 

@@ -26,7 +26,7 @@ class maserVlbi:
             print('-------------------------------')
             print(f'---> Loading file \"{self._filename}\"...')
 
-        self._fle = h5py.File(filename, 'r')
+        self._fle = h5py.File(filename, 'r+')
         # -- reading spots data --
         self.spots = spotsClass()
         self.spots.readDataFromGroup(self._fle['SPOTS'])
@@ -123,8 +123,12 @@ class maserVlbi:
         self.cloudlets = []
         try:
             dset = fle['CLOUDLETS']
-            if (self.verbose):
-                print(f"---> cloudlet information found!")
+            for clGroup in dset:
+                cloud = cloudletClass()
+                cloud.loadFromHDF(dset[clGroup]['SPOTS'])
+                cloud.calcProps()
+                self.cloudlets.append(cloud)
+            print(f'---> Succesfully loaded {len(self.cloudlets)} cloudlets!')
         except:
             if (self.verbose):
                 print(f"---> no cloudlet information found!")
@@ -135,8 +139,6 @@ class maserVlbi:
         ax.yaxis.set_tick_params(direction='in', width=1, length = 3, right=True)
         ax.yaxis.set_tick_params(direction='in', width=1, length = 3, which='minor', right=True)
     
-
-
     '''
     PUBLIC:
     '''
@@ -149,6 +151,42 @@ class maserVlbi:
     def printCloudlets(self):
         for cl in self.cloudlets:
             print(cl)
+
+    def saveCloudlets(self):
+        '''
+        Method to save information about Cloudlets to the opened file
+        -> If there is no cloudlets, this method should do sh*t
+        -> If there is 'CLOUDLET' key in file, it's contents should be wiped before proceeding
+        further
+        -> At every pass new 'CLOUDLETS' key should be created
+        '''
+        if len(self.cloudlets) < 1:
+            return # as I said...
+        # -
+        if 'CLOUDLETS' in self._fle.keys():
+            del self._fle['CLOUDLETS']
+        cloudletGroup = self._fle.create_group('CLOUDLETS') # <--- ALWAYS CREATE NEW GROUP ON SAVE
+        # -
+        for index, cloudlet in enumerate(self.cloudlets):
+            try:
+                oneCl = cloudletGroup.create_group("CLOUDLET#" + str(index))
+                self.__saveSpotsToGroups(oneCl, cloudlet)
+            except:
+                print(f"---> Error writing cloudlet no. {str(index)}")
+    
+    def __saveSpotsToGroups(self, group, cloudlet):
+        '''
+        This method saves information of singular cloudlet
+        '''
+        spotsGr = group.create_group('SPOTS')
+        spotsGr.create_dataset("RA", data = cloudlet.spots.dRA)
+        spotsGr.create_dataset("RA_ERR", data = cloudlet.spots.dRA_err)
+        spotsGr.create_dataset("DEC", data = cloudlet.spots.dDEC)
+        spotsGr.create_dataset("DEC_ERR", data = cloudlet.spots.dDEC_err)
+        spotsGr.create_dataset("FLUX", data = cloudlet.spots.flux)
+        spotsGr.create_dataset("FLUX_ERR", data = cloudlet.spots.flux_err)
+        spotsGr.create_dataset("CHANNELS", data = cloudlet.spots.channels)
+        spotsGr.create_dataset("VELOCITY", data = cloudlet.spots.velocity)
 
     def plot(self):
         # --- figure --- 
