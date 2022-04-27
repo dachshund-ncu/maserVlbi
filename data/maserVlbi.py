@@ -14,7 +14,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.collections import LineCollection
-import datetime
 
 class maserVlbi:
 
@@ -179,7 +178,12 @@ class maserVlbi:
             print(f'---> Succesfully saved {len(self.cloudlets)} cloudlets!')
         else:
             print(f'---> For some reason, saving cloudlets was not fully succesfull')
-            
+    
+    def clearCloudletInfo(self):
+        if 'CLOUDLETS' in self._fle.keys():
+            del self._fle['CLOUDLETS']
+            self.cloudlets = []
+
     def __saveSpotsToGroups(self, group, cloudlet):
         '''
         This method saves information of singular cloudlet

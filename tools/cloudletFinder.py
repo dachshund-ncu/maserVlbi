@@ -92,6 +92,7 @@ class cloudletFinder(QtWidgets.QApplication):
         self.addToCloudlets = QtWidgets.QPushButton(self.window)
         self.removeFromCloudlets = QtWidgets.QPushButton(self.window)
         self.saveCloudlets = QtWidgets.QPushButton(self.window)
+        self.clearCloudletInfo = QtWidgets.QPushButton(self.window)
         # -- checkboxes --
         self.showBeam = QtWidgets.QCheckBox(self.window)
         self.showMarkRectangle = QtWidgets.QCheckBox(self.window)
@@ -109,6 +110,7 @@ class cloudletFinder(QtWidgets.QApplication):
         self.showChannels.setText("Show channels")
         self.showMarker.setText("Show spot marker")
         self.saveCloudlets.setText("Save cloudlets")
+        self.clearCloudletInfo.setText("Clear cloudlet info")
         # -
         self.showMarkRectangle.setChecked(True)
         self.showSpots.setChecked(True)
@@ -126,6 +128,7 @@ class cloudletFinder(QtWidgets.QApplication):
         self.frame_right_hand_vbox.addWidget(self.addToCloudlets)
         self.frame_right_hand_vbox.addWidget(self.removeFromCloudlets)
         self.frame_right_hand_vbox.addWidget(self.saveCloudlets)
+        self.frame_right_hand_vbox.addWidget(self.clearCloudletInfo)
         self.frame_right_hand_vbox.addWidget(self.showBeam)
         self.frame_right_hand_vbox.addWidget(self.showMarkRectangle)
         self.frame_right_hand_vbox.addWidget(self.showSpots)
@@ -160,6 +163,7 @@ class cloudletFinder(QtWidgets.QApplication):
         self.addToCloudlets.clicked.connect(self.__addToCloudletList)
         self.removeFromCloudlets.clicked.connect(self.__removeFromCloudletList)
         self.saveCloudlets.clicked.connect(self.__saveCloudletsToFile)
+        self.clearCloudletInfo.clicked.connect(self.__clearAllCloudletInfo)
         #QtCore.QObject.connect(self.spotList, QtCore.SIGNAL('currentItemChanged()'), self.__plotMarkerOnClick)
         self.spotList.currentItemChanged.connect(self.__plotMarkerOnClick)
         self.showMarker.clicked.connect(self.__markerVisibility)
@@ -256,6 +260,7 @@ class cloudletFinder(QtWidgets.QApplication):
             if self.plot.selector.active:
                 self.plot.selector.set_active(False)
                 self.showMarkRectangle.setChecked(False)
+                self.plot.selector.set_visible(False)
         self.plot.draw()
     def __rectangle_visible(self):
         '''
@@ -318,8 +323,21 @@ class cloudletFinder(QtWidgets.QApplication):
             index = self.cloudletList.currentRow()
             self.data.removeCloudlet(index)
             self.cloudletList.takeItem(index)
+            self.plot.setNewCloudletPlot(self.data, self.showCloudlets.isChecked())
         except:
             return    
+    def __clearAllCloudletInfo(self):
+        '''
+        Wipes all cloudlet information:
+        -> from the plot
+        -> from the list
+        -> from dle << data >> class
+        -> from the .hdf5 file
+        '''
+        self.cloudletList.clear()
+        self.data.clearCloudletInfo()
+        self.plot.setNewCloudletPlot(self.data, self.showCloudlets.isChecked())
+        print('---> Removed info about cloudlets')
 
     def __saveCloudletsToFile(self):
         self.data.saveCloudlets()
@@ -372,8 +390,17 @@ class plotCanvas(FigureCanvas):
         p.set_array(spectrum.velocity)
         self.fig.colorbar(p, ax=self.axSpots, cax = self.axCbar, label="V$_{LSR}\,$(km$\,$s$^{-1}$)")
         self.axCbar.set_ylim(spectrum.velocity.min(), spectrum.velocity.max())
+        self.__autoscaleSpotPlot(spots)
         return self.spotScatterPlot
     
+    def __autoscaleSpotPlot(self, spots):
+        diffra = abs(spots.dRA.max() - spots.dRA.min())
+        diffdec = abs(spots.dDEC.max() - spots.dDEC.min())
+
+        self.axSpots.set_xlim(spots.dRA.min() - 0.05 * diffra, spots.dRA.max() + 0.05 * diffra)
+        self.axSpots.set_ylim(spots.dDEC.min() - 0.05 * diffdec, spots.dDEC.max() + 0.05 * diffdec)
+        self.axSpots.invert_xaxis()
+
     def plotCoudlets(self, data):
         '''
         Plot cloudlets. 
@@ -444,8 +471,7 @@ class plotCanvas(FigureCanvas):
         self.fig.canvas.draw_idle()
     
     def cloudletVisible(self, flag):
-        for clPlot in self.cloudletPlots:
-            clPlot.set_visible(flag)
+        [clPlot.set_visible(flag) for clPlot in self.cloudletPlots]
         self.fig.canvas.draw_idle()
     
     def setNewCloudletPlot(self, data, flag):
@@ -454,16 +480,13 @@ class plotCanvas(FigureCanvas):
         '''
         # - 
         for i in self.cloudletPlots:
-            del i
-        self.cloudletPlots = []
+            i.remove()
         # -
         colors = data.getClJetColors(data.spectrum.velocity.min(), data.spectrum.velocity.max())
         self.cloudletPlots = []
         for index, cloudlet in enumerate(data.cloudlets):
             self.cloudletPlots.append(self.axSpots.scatter(cloudlet.dRA, cloudlet.dDEC, s=np.log(cloudlet.maxFlux*1000.0)**2.0 * 10, edgecolor = 'none', facecolor=colors[index], marker='P', visible=flag) )
         self.fig.canvas.draw_idle()
-
-
 
 if __name__ == '__main__':
     app = cloudletFinder(sys.argv[1])
