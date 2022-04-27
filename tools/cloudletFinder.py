@@ -156,6 +156,7 @@ class cloudletFinder(QtWidgets.QApplication):
         self.showMarkRectangle.clicked.connect(self.__rectangle_visible)
         self.showSpots.clicked.connect(self.__spots_visible)
         self.showChannels.clicked.connect(self.__channels_visible)
+        self.showCloudlets.clicked.connect(self.__cloudletVisibilitySwitchSlot)
         self.addToCloudlets.clicked.connect(self.__addToCloudletList)
         self.removeFromCloudlets.clicked.connect(self.__removeFromCloudletList)
         self.saveCloudlets.clicked.connect(self.__saveCloudletsToFile)
@@ -168,6 +169,7 @@ class cloudletFinder(QtWidgets.QApplication):
         Spots are plotted ONLY after invoking this method
         '''
         b = self.plot.addSpotPlot(self.data.spots, self.data.spectrum)
+        self.plot.plotCoudlets(self.data)
         self.plot.draw()
         self.spotList.setCurrentRow(0)
     
@@ -262,11 +264,13 @@ class cloudletFinder(QtWidgets.QApplication):
         '''
         if not self.showMarkRectangle.isChecked():
             self.plot.selector.set_active(False)
+            self.plot.selector.set_visible(False)
         else:
             if self.showBeam.isChecked():
                 self.showBeam.setChecked(False)
                 self.__beam_visible()
             self.plot.selector.set_active(True)
+            self.plot.selector.set_visible(True)
         self.plot.fig.canvas.draw_idle()
     
     '''
@@ -289,7 +293,7 @@ class cloudletFinder(QtWidgets.QApplication):
         If there is no spots in marked range, this slot should do nothing (return)
         '''
         if not self.plot.selector.active:
-            print("selector not active!")
+            print("---> selector not active!")
             return
         # -
         ranges = self.plot.getMarkedRange()
@@ -303,6 +307,7 @@ class cloudletFinder(QtWidgets.QApplication):
         # -
         self.addToList(cloudlet) # <--- ADDS ONLY TO THE INTERFACE
         self.data.appendCloudlet(cloudlet) # <--- THIS IS TO HOLD ACTUAL DATA
+        self.plot.setNewCloudletPlot(self.data, self.showCloudlets.isChecked()) # <--- UPDATES GRAPH
     def __removeFromCloudletList(self):
         '''
         Simply removes cloudlet from the list
@@ -318,6 +323,9 @@ class cloudletFinder(QtWidgets.QApplication):
 
     def __saveCloudletsToFile(self):
         self.data.saveCloudlets()
+
+    def __cloudletVisibilitySwitchSlot(self):
+        self.plot.cloudletVisible(self.showCloudlets.isChecked())
 
     '''
     SPOT MARKER
@@ -353,6 +361,10 @@ class plotCanvas(FigureCanvas):
         self.axSpots.set_ylabel("$\Delta$DEC (mas)")
 
     def addSpotPlot(self, spots, spectrum):
+        '''
+        Plots spots
+        Designed to be invoked only once, upon startup
+        '''
         colors = spots.getJetColors(spectrum.velocity.min(), spectrum.velocity.max())
         self.spotScatterPlot = self.axSpots.scatter(spots.dRA, spots.dDEC, s=np.log(spots.flux*1000.0)**2.0 * 10, edgecolor = colors, facecolor='none')
         self.markerPlot = self.axSpots.scatter(spots.dRA[0], spots.dDEC[0], s=np.log(spots.flux[0]*1000.0)**2.0 * 10, edgecolor = 'none', facecolor='grey')
@@ -361,6 +373,16 @@ class plotCanvas(FigureCanvas):
         self.fig.colorbar(p, ax=self.axSpots, cax = self.axCbar, label="V$_{LSR}\,$(km$\,$s$^{-1}$)")
         self.axCbar.set_ylim(spectrum.velocity.min(), spectrum.velocity.max())
         return self.spotScatterPlot
+    
+    def plotCoudlets(self, data):
+        '''
+        Plot cloudlets. 
+        Designed to be invoked only once, upon startup
+        '''
+        colors = data.getClJetColors(data.spectrum.velocity.min(), data.spectrum.velocity.max())
+        self.cloudletPlots = []
+        for index, cloudlet in enumerate(data.cloudlets):
+            self.cloudletPlots.append(self.axSpots.scatter(cloudlet.dRA, cloudlet.dDEC, s=np.log(cloudlet.maxFlux*1000.0)**2.0 * 10, edgecolor = 'none', facecolor=colors[index], marker='P', visible=False) )
 
     
     def __makeFancyTicks(self, ax):
@@ -420,7 +442,27 @@ class plotCanvas(FigureCanvas):
         self.markerPlot.set_offsets([x,y])
         self.markerPlot.set_sizes([np.log(flux*1000.0)**2.0 * 10])
         self.fig.canvas.draw_idle()
-        
+    
+    def cloudletVisible(self, flag):
+        for clPlot in self.cloudletPlots:
+            clPlot.set_visible(flag)
+        self.fig.canvas.draw_idle()
+    
+    def setNewCloudletPlot(self, data, flag):
+        '''
+        Destroys previous cloudlet plot and creates new one
+        '''
+        # - 
+        for i in self.cloudletPlots:
+            del i
+        self.cloudletPlots = []
+        # -
+        colors = data.getClJetColors(data.spectrum.velocity.min(), data.spectrum.velocity.max())
+        self.cloudletPlots = []
+        for index, cloudlet in enumerate(data.cloudlets):
+            self.cloudletPlots.append(self.axSpots.scatter(cloudlet.dRA, cloudlet.dDEC, s=np.log(cloudlet.maxFlux*1000.0)**2.0 * 10, edgecolor = 'none', facecolor=colors[index], marker='P', visible=flag) )
+        self.fig.canvas.draw_idle()
+
 
 
 if __name__ == '__main__':

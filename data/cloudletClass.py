@@ -33,6 +33,9 @@ class cloudletClass:
         self.spots.set_velocity(velocity)
     
     def loadFromHDF(self, group):
+        '''
+        Reads << spots >> attribute from HDF group passed in the argument
+        '''
         self.spots = spotsClass()
         self.spots.readDataFromGroup(group)
 
@@ -48,6 +51,7 @@ class cloudletClass:
         self.maxFlux = self.spots.flux.max()
         self.meanFlux_err = np.std(self.spots.flux)
         self.maxFlux_err = self.spots.flux[self.spots.flux.tolist().index(self.maxFlux)]
+        self.velocity = np.average(self.spots.velocity, weights=self.spots.flux)
 
     def __str__(self):
         return f"x: {round(self.dRA, 2)}, y: {round(self.dDEC, 2)}, flux: {round(self.maxFlux, 2)}"

@@ -140,7 +140,7 @@ class maserVlbi:
         ax.yaxis.set_tick_params(direction='in', width=1, length = 3, which='minor', right=True)
     
     '''
-    PUBLIC:
+    OTHER:
     '''
     def appendCloudlet(self, cloudletObj):
         self.cloudlets.append(cloudletObj)
@@ -167,13 +167,19 @@ class maserVlbi:
             del self._fle['CLOUDLETS']
         cloudletGroup = self._fle.create_group('CLOUDLETS') # <--- ALWAYS CREATE NEW GROUP ON SAVE
         # -
+        flag = True
         for index, cloudlet in enumerate(self.cloudlets):
             try:
                 oneCl = cloudletGroup.create_group("CLOUDLET#" + str(index))
                 self.__saveSpotsToGroups(oneCl, cloudlet)
             except:
+                flag = False
                 print(f"---> Error writing cloudlet no. {str(index)}")
-    
+        if flag:
+            print(f'---> Succesfully saved {len(self.cloudlets)} cloudlets!')
+        else:
+            print(f'---> For some reason, saving cloudlets was not fully succesfull')
+            
     def __saveSpotsToGroups(self, group, cloudlet):
         '''
         This method saves information of singular cloudlet
@@ -187,6 +193,20 @@ class maserVlbi:
         spotsGr.create_dataset("FLUX_ERR", data = cloudlet.spots.flux_err)
         spotsGr.create_dataset("CHANNELS", data = cloudlet.spots.channels)
         spotsGr.create_dataset("VELOCITY", data = cloudlet.spots.velocity)
+
+    def getClJetColors(self, vMin, vMax):
+        '''
+        Simply gets cloudlet jet colors
+        '''
+        if len(self.cloudlets) < 1:
+            return False
+        veltab = []
+        for cloudlet in self.cloudlets:
+            veltab.append(cloudlet.velocity)
+        veltab = np.asarray(veltab)
+        vRange = abs(vMax - vMin)
+        scaledVeltab = (veltab - vMin) / vRange
+        return plt.cm.jet(scaledVeltab)
 
     def plot(self):
         # --- figure --- 
