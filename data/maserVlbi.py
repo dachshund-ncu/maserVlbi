@@ -212,6 +212,23 @@ class maserVlbi:
         scaledVeltab = (veltab - vMin) / vRange
         return plt.cm.jet(scaledVeltab)
 
+    def saveSpotsToAscii(self, filename):
+        '''
+        This method simply saves spot information into the ASCII file
+        '''
+        fle = open(filename, 'w+')
+        fle.write('# ----------------------------\n')
+        fle.write(f'# TIME: {self.isot_begin}\n')
+        fle.write(f'# BEAM-SIZE: {self.beam_raAxis} x {self.beam_decAxis} ({self.beam_posang})\n')
+        fle.write(f'# ORIGIN: {self.originRA} {self.originDEC}\n')
+        fle.write(f'# PROJECT CODE: {self.project_code}\n')
+        fle.write(f'# PI: {self.pi}\n')
+        fle.write('# ----------------------------\n')
+        fle.write('# Channel | Velocity (km/s) | FLux Density (Jy/beam) | Flux error | dRA (mas) | dRA error (mas) | dDEC (mas) | dDEC error (mas)\n')
+        for i, vel in enumerate(self.spots.velocity):
+            fle.write('%d   %.3f   %.4f   %.4f   %.3f   %.3f   %.3f   %.3f \n' % (self.spots.channels[i], vel, self.spots.flux[i], self.spots.flux_err[i], self.spots.dRA[i], self.spots.dRA_err[i], self.spots.dDEC[i], self.spots.dDEC_err[i]))
+        fle.close()
+
     def plot(self):
         # --- figure --- 
         fig = plt.figure(figsize=(5.8,7))

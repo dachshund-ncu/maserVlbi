@@ -47,7 +47,7 @@ class spotsClass:
     
     def getPropsFromIndex(self, index):
         return self.dRA[index], self.dDEC[index], self.flux[index], self.velocity[index]
-
+    
     '''
     INITIALIZING THIS CLASS FROM NO HDF5:
     '''
