@@ -64,3 +64,29 @@ class spotsClass:
         self.channels = ch
     def set_velocity(self, vel):
         self.velocity = vel
+
+    '''
+    SPOT SHIFTING
+    '''
+    def shiftTo(self, shiftRA, shiftDEC):
+        '''
+        Shifts RA and DEC by a coords, given in args
+        '''
+        self.dRA -= shiftRA
+        self.dDEC -= shiftDEC
+    
+    def __str__(self):
+        '''
+        what is printed, when 'print()' is called?
+        '''
+        printstr = ""
+        for index, ra in enumerate(self.dRA):
+            printstr += f"{int(self.channels[index])} "
+            printstr += f"{str(round(self.velocity[index],2)).zfill(2) } "
+            printstr += f"{round(self.flux[index],3)} "
+            printstr += f"{round(self.flux_err[index],3)} "
+            printstr += f"{round(ra,2)} "
+            printstr += f"{round(self.dRA_err[index],2)} "
+            printstr += f"{round(self.dDEC[index],2)} "
+            printstr += f"{round(self.dDEC_err[index],2)}\n"
+        return printstr

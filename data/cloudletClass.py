@@ -56,3 +56,10 @@ class cloudletClass:
     def __str__(self):
         return f"x: {round(self.dRA, 2)}, y: {round(self.dDEC, 2)}, flux: {round(self.maxFlux, 2)}"
     
+    def shiftTo(self, shiftRA, shiftDEC):
+        '''
+        Shifts RA and DEC by a coords given in args
+        '''
+        self.dRA -= shiftRA
+        self.dDEC -= shiftDEC
+        self.spots.shiftTo(shiftRA, shiftDEC)
