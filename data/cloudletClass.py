@@ -17,6 +17,9 @@ in "spots" we hold all of the spots that are parts of this cloudlet
 from spotClass import spotsClass
 import numpy as np
 from scipy.optimize import curve_fit
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+from matplotlib.ticker import AutoMinorLocator
 
 class cloudletClass:
 
@@ -74,7 +77,7 @@ class cloudletClass:
     31.05.2022: STARTING DEVELOPING MULTIPLE GAUSSIAN FITS
     '''
 
-    def fit1DGaussianToData(self, verbose=False):
+    def fit1DGaussianToData(self, verbose=False, plot=False):
         '''
         Fits 1D gaussian function to << spots >> data
         '''
@@ -82,12 +85,14 @@ class cloudletClass:
         argtab = self.__determineInputArgs1D()
         bounds = self.__generateBounds1D(argtab)
         # --- returning ---
-        return self.__fit1DGauss(argtab, bounds, verbose)
+        return self.__fit1DGauss(argtab, bounds, verbose, plot)
     
-    def __fit1DGauss(self, argtab, bounds, verbose=False):
+    def __fit1DGauss(self, argtab, bounds, verbose=False, plot=False):
         coeff, varMatrix = curve_fit(self.__gaussian1D, self.spots.velocity, self.spots.flux, p0=argtab, bounds=bounds, method='trf')
         if verbose:
             self.__printFitResults(coeff, varMatrix)
+        if plot:
+            self.plotFittedGauss(coeff)
         # --- returning ---
         return coeff, varMatrix
 
@@ -145,7 +150,7 @@ class cloudletClass:
     ===============
     '''
 
-    def fitMultipleGauss(self, amp = [], vel = [], fwhm = [], bds = [], verbose=False):
+    def fitMultipleGauss(self, amp = [], vel = [], fwhm = [], bds = [], verbose=False, plot=False):
         '''
         This is main public function, that fits gaussian function to the spots
         stored in this cloudlet class
@@ -165,6 +170,10 @@ class cloudletClass:
         # --------------------
         if verbose:
             self.__printFitResults(coeff, varMatrix)
+        
+        if plot:
+            self.plotFittedGauss(coeff)
+
         return coeff, varMatrix
     
     def __fitMultiDimGauss(self, amp, vel, fwhm, bds):
@@ -293,4 +302,50 @@ class cloudletClass:
             y.append(ytmp)
         return x,y
             
-        
+    def plotFittedGauss(self, coeffs):
+        '''
+        To be honest, this just simply plots the 
+        fitting with residuals. TBH - nothing special
+        '''
+        # generating figure
+        fig = plt.figure()
+        # subplots
+        gs = gridspec.GridSpec(2,1, height_ratios=[4,1], hspace=0.0)
+        axFit = fig.add_subplot(gs[0,0])
+        axRes = fig.add_subplot(gs[1,0])
+        # getting the data:
+        # ACTUAL DATA
+        axFit.plot(self.spots.velocity, self.spots.flux, ls="", marker="o", ms=6, zorder=5, c='black', label='Data')
+        # FIT
+        x,y = self.getTableToPlotGauss(coeffs)
+        axFit.plot(x,y, c='red', ls='--', lw=2, zorder=4, label="Fit")
+        # RESIDUALS
+        yRes = self.__multipleGaussWrapper(self.spots.velocity, *coeffs)
+        axRes.plot(self.spots.velocity, self.spots.flux - yRes, ls="", marker="o", ms=6, zorder=5, c='black')
+        axRes.plot(x,np.zeros(len(x)), c='red', ls='--', lw=2, zorder=4)
+        # SPECIAL CASE FOR MULTIPLE GAUSSES
+        if len(coeffs) > 3:
+            x2,y2 = self.getSingularGausses(coeffs)
+            for i, xData in enumerate(x2):
+                if i == 0:
+                    axFit.plot(xData, y2[i], c='blue', lw=1.5, ls='--', zorder=4, label='Singular Gaussian profiles')
+                else:
+                    axFit.plot(xData, y2[i], c='blue', lw=1.5, ls='--', zorder=4)
+        axFit.set_xticklabels([])
+        self.__makeFancyTicks(axFit)
+        self.__makeFancyTicks(axRes)
+
+        axRes.set_xlabel("Velocity$\,$(km$\,$s$^{-1}$)")
+        axFit.set_ylabel("Flux density$\,$(Jy$\,$beam$^{-1}$)")
+
+        axFit.legend()
+        plt.show()
+        plt.close(fig)
+
+    def __makeFancyTicks(self, ax):
+        ax.xaxis.set_tick_params(direction='in', width=1, length = 3, top = True, bottom=True)
+        ax.xaxis.set_tick_params(direction='in', width=1, length = 1.5, which='minor', top = True, bottom=True)
+        ax.yaxis.set_tick_params(direction='in', width=1, length = 3, left=True, right=True)
+        ax.yaxis.set_tick_params(direction='in', width=1, length = 1.5, which='minor', right=True, left=True)
+        ax.xaxis.set_minor_locator(AutoMinorLocator())
+        ax.yaxis.set_minor_locator(AutoMinorLocator())
