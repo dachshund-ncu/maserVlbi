@@ -230,14 +230,15 @@ class maserVlbi:
             fle.write('%d   %.3f   %.4f   %.4f   %.3f   %.3f   %.3f   %.3f \n' % (self.spots.channels[i], vel, self.spots.flux[i], self.spots.flux_err[i], self.spots.dRA[i], self.spots.dRA_err[i], self.spots.dDEC[i], self.spots.dDEC_err[i]))
         fle.close()
 
-    def plot(self):
+    def plot(self, vmin = None, vmax = None):
         # --- figure --- 
         fig = plt.figure(figsize=(5.8,7))
         gs = gridspec.GridSpec(2, 1, height_ratios=[1,3])
 
         # --- map ---
-        vmin = self.spectrum.velocity.min()
-        vmax = self.spectrum.velocity.max()
+        if vmin is None and vmax is None:
+            vmin = self.spectrum.velocity.min()
+            vmax = self.spectrum.velocity.max()
         axMap = fig.add_subplot(gs[1,0])
         
         colors = self.spots.getJetColors(vmin = vmin, vmax = vmax)
