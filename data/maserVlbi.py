@@ -15,6 +15,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.collections import LineCollection
+from matplotlib.patches import Ellipse
 
 class maserVlbi:
 
@@ -230,7 +231,7 @@ class maserVlbi:
             fle.write('%d   %.3f   %.4f   %.4f   %.3f   %.3f   %.3f   %.3f \n' % (self.spots.channels[i], vel, self.spots.flux[i], self.spots.flux_err[i], self.spots.dRA[i], self.spots.dRA_err[i], self.spots.dDEC[i], self.spots.dDEC_err[i]))
         fle.close()
 
-    def plot(self, vmin = None, vmax = None):
+    def plot(self, vmin = None, vmax = None, isBeam = False):
         # --- figure --- 
         fig = plt.figure(figsize=(5.8,7))
         gs = gridspec.GridSpec(2, 1, height_ratios=[1,3])
@@ -275,7 +276,13 @@ class maserVlbi:
         tmpPlot, = axMap.plot(np.nan, np.nan, label=self.project_code)
         axMap.legend(handles=[tmpPlot], loc="upper right", handlelength=0, handletextpad=0, framealpha = 0.9)
 
-        plt.show()
+        if isBeam:
+            blc = [axMap.get_xlim()[0], axMap.get_ylim()[1]]
+            beamEl = Ellipse( (blc[0], blc[1]), self.beam_raAxis, self.beam_decAxis, angle=self.beam_posang, fc='none', ec='black')
+            axMap.add_patch(beamEl)
+            return axMap, beamEl
+        #plt.show()
+        return axMap
 
     def shiftToSpot(self, spotIndex):
         '''
